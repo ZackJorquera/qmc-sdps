@@ -1,5 +1,4 @@
 import numpy as np
-import scipy
 
 
 def create_QMC_graph_ham(n, edges):

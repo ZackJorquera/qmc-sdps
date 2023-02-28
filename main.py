@@ -3,7 +3,7 @@ import cvxpy as cp
 import scipy
 import itertools
 
-from qmc_helpers import *
+from graph_helpers import *
 
 
 def goemans_williamson_max_cut(n, edges, ave_over_iters=None):
@@ -198,26 +198,6 @@ def lasserre_2_product_state_q_max_cut_relaxed(n, edges, ave_over_iters=None, ob
     return sdp_val, round_val_ave
 
 
-def gen_cycle(n):
-    edges = [(i, (i + 1) % n, 1) for i in range(n)]
-    max_cut = n - (n % 2)
-
-    H = create_QMC_graph_ham(n, edges)
-    q_max_cut = np.max(np.linalg.eigvalsh(H))
-
-    return edges, max_cut, q_max_cut
-
-
-def gen_star(n, calc_q_max_cut=False):
-    edges = [(0, i + 1, 1) for i in range(n-1)]
-    max_cut = n-1
-    q_max_cut = n/2
-    if calc_q_max_cut:
-        H = create_QMC_graph_ham(n, edges)
-        q_max_cut = np.max(np.linalg.eigvalsh(H))
-    return edges, max_cut, q_max_cut
-
-
 def star_test():
     # we test the star graphs using known values
     for n in range(2, 9):
@@ -258,20 +238,55 @@ def calc_gaps_of_graph_las2(n, edges):
     print(f"Ratio: {las2_round_val/las2_sdp_val=:.4f}, Algorithmic gap: {las2_round_val/opt_qmc_val=:.4f}, Integrality gap: {opt_qmc_val/las2_sdp_val=:.4f}")
 
 
-if __name__ == "__main__":
-    # star_test()
-    n = 9
-    edges, opt_mc_val, opt_qmc_val = gen_cycle(n)
+def test_random_graphs(iters, n=10):
+    n += n % 2
+    mc_aves = []
+    qmc_aves = []
+    for _ in range(iters):
+        edges, opt_mc_val, opt_qmc_val = gen_rand(n, 3)
+        gw_sdp_val, gw_round_val = goemans_williamson_max_cut(n, edges, 100)
+        mc_aves.append([gw_sdp_val, gw_round_val, opt_mc_val, gw_round_val / gw_sdp_val, gw_round_val / opt_mc_val,
+                        opt_mc_val / gw_sdp_val])
+
+        gp_sdp_val, gp_round_val = product_state_sdp_q_max_cut_simplified(n, edges, 100)
+        qmc_aves.append([gp_sdp_val, gp_round_val, opt_qmc_val, gp_round_val / gp_sdp_val, gp_round_val / opt_qmc_val,
+                         opt_qmc_val / gp_sdp_val])
+
+        assert np.allclose(3/2 * gw_sdp_val - 1/2 * len(edges), gp_sdp_val)
+
+    mc_aves = np.average(mc_aves, axis=0)
+    qmc_aves = np.average(qmc_aves, axis=0)
+    print(f"Goemans-Williamson for Max-Cut on {iters} 3-regular random graphs ({n} vertices):")
+    print(f"gw_sdp_val={mc_aves[0]:.4f}, gw_round_val={mc_aves[1]:.4f}, opt_mc_val={mc_aves[2]:.4f}")
+    print(f"Ratio: {mc_aves[3]:.4f}, Algorithmic gap: {mc_aves[4]:.4f}, Integrality gap: {mc_aves[5]:.4f}")
+
+    print(f"\nGharibian-Parekh for QMC on {iters} 3-regular random graphs ({n} vertices):")
+    print(f"gp_sdp_val={qmc_aves[0]:.4f}, gp_round_val={qmc_aves[1]:.4f}, opt_qmc_val={qmc_aves[2]:.4f}")
+    print(f"Ratio: {qmc_aves[3]:.4f}, Algorithmic gap: {qmc_aves[4]:.4f}, Integrality gap: {qmc_aves[5]:.4f}")
+
+
+def run_basic_graphs(graph_type, n=9):
+    n += n % 2 if graph_type == "rand" else 0
+    edges, opt_mc_val, opt_qmc_val = gen_cycle(n, True) if graph_type == "cycle" else gen_star(
+        n) if graph_type == "star" else gen_rand(n, 3)
+
     sdp_val, round_val = goemans_williamson_max_cut(n, edges, 100)
 
-    print(f"Cycle of len {n}:")
+    print(f"{graph_type} graph of len {n}:")
     print(f"Goemans-Williamson for Max-Cut:")
     print(f"{sdp_val=:.4f}, {round_val=:.4f}, {opt_mc_val=:.4f}")
-    print(f"Ratio: {round_val/sdp_val=:.4f}, Algorithmic gap: {round_val/opt_mc_val=:.4f}, Integrality gap: {opt_mc_val/sdp_val=:.4f}")  # note, GW ratio is \approx 0.8785
+    print(
+        f"Ratio: {round_val/sdp_val=:.4f}, Algorithmic gap: {round_val/opt_mc_val=:.4f}, Integrality gap: {opt_mc_val/sdp_val=:.4f}")  # note, GW ratio is \approx 0.8785
 
     print("")
     calc_gaps_of_graph_las1(n, edges)
 
     print("")
     calc_gaps_of_graph_las2(n, edges)
+
+
+if __name__ == "__main__":
+    test_random_graphs(50, n=12)
+    # run_basic_graphs("rand")  # "star" "cycle" "rand"
+
 
