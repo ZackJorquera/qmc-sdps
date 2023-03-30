@@ -267,7 +267,7 @@ def test_random_graphs(iters, n=10):
 
 def run_basic_graphs(graph_type, n=9):
     n += n % 2 if graph_type == "rand" else 0
-    edges, opt_mc_val, opt_qmc_val = gen_cycle(n, True) if graph_type == "cycle" else gen_star(
+    edges, opt_mc_val, opt_qmc_val = gen_cycle(n, True, True) if graph_type == "cycle" else gen_star(
         n) if graph_type == "star" else gen_rand(n, 3)
 
     sdp_val, round_val = goemans_williamson_max_cut(n, edges, 100)

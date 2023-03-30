@@ -13,7 +13,7 @@ def gen_cycle(n, calc_evec=False):
         q_max_cut = evals[-1]
         q_max_cut_soln = evecs[:, -1]/np.linalg.norm(evecs[:, -1])
     else:
-        q_max_cut = np.max(np.linalg.eigvalsh(H))
+        q_max_cut = -1  # np.max(np.linalg.eigvalsh(H))
 
     return edges, max_cut, q_max_cut
 
@@ -44,3 +44,8 @@ def gen_rand(n, degree):
     q_max_cut = np.max(np.linalg.eigvalsh(H))
 
     return edges, max_cut, q_max_cut
+
+
+def gen_complete(n):
+    edges = [(pair[0], pair[1], 1) for pair in itertools.combinations(range(n), 2)]
+    return edges
